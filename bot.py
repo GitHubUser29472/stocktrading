@@ -10,6 +10,7 @@ STOCK = "TSLA"
 PRICE_ALERT = 550
 EQUITY_FILE = "last_equity.txt"
 
+# Fetch API keys from environment variables
 API_KEY = os.getenv("ALPACA_API_KEY")
 SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
@@ -37,8 +38,10 @@ def check_tsla_price():
         quote = data_client.get_stock_latest_quote(request)[STOCK]
         price = quote.ask_price
         print(f"DEBUG: Current {STOCK} price: ${price}")  # always print
+
         if price > PRICE_ALERT:
             send_alert(f"{STOCK} price above ${PRICE_ALERT}: ${price}")
+
     except Exception as e:
         print("ERROR fetching TSLA price:", e)
 
