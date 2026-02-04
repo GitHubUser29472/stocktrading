@@ -81,5 +81,6 @@ def main():
     check_portfolio_change()
     print("===== Check Complete =====\n")
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
     main()
+   
