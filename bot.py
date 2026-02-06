@@ -9,6 +9,8 @@ from alpaca.data.requests import StockLatestQuoteRequest
 STOCK = "TSLA"
 PRICE_ALERT = 550  # example alert price
 
+#Alerts you when TESLA stock in over $500
+
 
 # Load API keys from environment variables
 # Load API keys from environment variables (make sure they match your Alpaca keys)
