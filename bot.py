@@ -7,80 +7,62 @@ from alpaca.data.requests import StockLatestQuoteRequest
 # CONFIG
 # =====================
 STOCK = "TSLA"
-PRICE_ALERT = 550
-EQUITY_FILE = "last_equity.txt"
+PRICE_ALERT = 550  # example alert price
 
-# Fetch API keys from environment variables
+
+# Load API keys from environment variables
+# Load API keys from environment variables (make sure they match your Alpaca keys)
+from dotenv import load_dotenv
+
+load_dotenv()  # loads keys from a .env file in your project folder
+
 API_KEY = os.getenv("ALPACA_API_KEY")
-SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
+API_SECRET = os.getenv("ALPACA_API_SECRET")  # ✅ NOTE: change to API_SECRET
 
-if not API_KEY or not SECRET_KEY:
-    raise Exception("ALPACA_API_KEY and ALPACA_SECRET_KEY must be set as environment variables!")
-
-# =====================
-# ALPACA CLIENTS (PAPER)
-# =====================
-trading_client = TradingClient(API_KEY, SECRET_KEY, paper=True)
-data_client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
+if not API_KEY or not API_SECRET:
+    raise ValueError("API keys not found. Set ALPACA_API_KEY and ALPACA_API_SECRET in your environment or .env file.")
 
 # =====================
-# ALERT FUNCTION
+# CLIENTS (PAPER TRADING)
 # =====================
-def send_alert(message):
-    print("ALERT:", message)
+trading_client = TradingClient(
+    API_KEY,
+    API_KEY_SECRET,
+    paper=True          # ✅ REQUIRED FOR PAPER TRADING
+)
 
-# =====================
-# TSLA PRICE CHECK
-# =====================
-def check_tsla_price():
-    try:
-        request = StockLatestQuoteRequest(symbol_or_symbols=STOCK)
-        quote = data_client.get_stock_latest_quote(request)[STOCK]
-        price = quote.ask_price
-        print(f"DEBUG: Current {STOCK} price: ${price}")  # always print
-
-        if price > PRICE_ALERT:
-            send_alert(f"{STOCK} price above ${PRICE_ALERT}: ${price}")
-
-    except Exception as e:
-        print("ERROR fetching TSLA price:", e)
+data_client = StockHistoricalDataClient(
+    API_KEY,
+    API_KEY_SECRET
+)
 
 # =====================
-# PORTFOLIO CHECK
+# FETCH LATEST PRICE
 # =====================
-def check_portfolio_change():
-    try:
-        account = trading_client.get_account()
-        current_equity = float(account.equity)
-        print(f"DEBUG: Current portfolio equity: ${current_equity}")  # always print
+print("===== Running TSLA & Portfolio Check =====")
 
-        last_equity = None
-        if os.path.exists(EQUITY_FILE):
-            with open(EQUITY_FILE, "r") as f:
-                last_equity = float(f.read())
+try:
+    request = StockLatestQuoteRequest(symbol_or_symbols=STOCK)
+    quote = data_client.get_stock_latest_quote(request)
 
-        if last_equity is not None:
-            if current_equity > last_equity:
-                send_alert(f"Portfolio increased: {last_equity} → {current_equity}")
-            elif current_equity < last_equity:
-                send_alert(f"Portfolio decreased: {last_equity} → {current_equity}")
+    price = quote[STOCK].ask_price
+    print(f"TSLA price: ${price}")
 
-        # Save current equity for next run
-        with open(EQUITY_FILE, "w") as f:
-            f.write(str(current_equity))
+    if price >= PRICE_ALERT:
+        print("🚨 PRICE ALERT TRIGGERED")
 
-    except Exception as e:
-        print("ERROR fetching portfolio:", e)
+except Exception as e:
+    print("ERROR fetching TSLA price:", e)
 
 # =====================
-# MAIN
+# FETCH PORTFOLIO
 # =====================
-def main():
-    print("===== Running TSLA & Portfolio Check =====")
-    check_tsla_price()
-    check_portfolio_change()
-    print("===== Check Complete =====\n")
+try:
+    account = trading_client.get_account()
+    print(f"Equity: ${account.equity}")
+    print(f"Buying Power: ${account.buying_power}")
 
-if __name__ == "__main__": 
-    main()
-   
+except Exception as e:
+    print("ERROR fetching portfolio:", e)
+
+print("===== Check Complete =====")
