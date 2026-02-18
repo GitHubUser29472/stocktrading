@@ -1,70 +1,58 @@
-import os
 from alpaca.trading.client import TradingClient
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockLatestQuoteRequest
+from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
 
-# =====================
-# CONFIG
-# =====================
-STOCK = "TSLA"
-PRICE_ALERT = 550  # example alert price
+# =====================================
+# 🔑 PUT YOUR NEW PAPER KEYS HERE
+# =====================================
+API_KEY = PKHFRA3RMF5ESMWW3ETTMKJHKV
+SECRET_KEY = PASTE_YOUR_NEW_PAPER_SECRET_HERE
 
-#Alerts you when TESLA stock in over $500
-#tells you not to buy
+# =====================================
+# SETTINGS
+# =====================================
+STOP_LOSS_PERCENT = -15  # Sell if position drops 15% or more
 
-# Load API keys from environment variables
-# Load API keys from environment variables (make sure they match your Alpaca keys)
-from dotenv import load_dotenv
+# =====================================
+# CONNECT TO ALPACA (PAPER TRADING)
+# =====================================
+trading_client = TradingClient(API_KEY, SECRET_KEY, paper=True)
 
-load_dotenv()  # loads keys from a .env file in your project folder
+def check_positions():
+    print("Checking positions...\n")
 
-API_KEY = os.getenv("ALPACA_API_KEY")
-API_SECRET = os.getenv("ALPACA_API_SECRET")  # ✅ NOTE: change to API_SECRET
+    try:
+        positions = trading_client.get_all_positions()
+    except Exception as e:
+        print("Connection error:", e)
+        return
 
-if not API_KEY or not API_SECRET:
-    raise ValueError("API keys not found. Set ALPACA_API_KEY and ALPACA_API_SECRET in your environment or .env file.")
+    if not positions:
+        print("No open positions.")
+        return
 
-# =====================
-# CLIENTS (PAPER TRADING)
-# =====================
-trading_client = TradingClient(
-    API_KEY,
-    API_KEY_SECRET,
-    paper=True          # ✅ REQUIRED FOR PAPER TRADING
-)
+    for position in positions:
+        symbol = position.symbol
+        qty = position.qty
+        percent_change = float(position.unrealized_plpc) * 100
 
-data_client = StockHistoricalDataClient(
-    API_KEY,
-    API_KEY_SECRET
-)
+        print(f"{symbol}: {percent_change:.2f}%")
 
-# =====================
-# FETCH LATEST PRICE
-# =====================
-print("===== Running TSLA & Portfolio Check =====")
+        if percent_change <= STOP_LOSS_PERCENT:
+            print(f"Stop loss triggered for {symbol}. Selling...")
 
-try:
-    request = StockLatestQuoteRequest(symbol_or_symbols=STOCK)
-    quote = data_client.get_stock_latest_quote(request)
+            order = MarketOrderRequest(
+                symbol=symbol,
+                qty=qty,
+                side=OrderSide.SELL,
+                time_in_force=TimeInForce.DAY
+            )
 
-    price = quote[STOCK].ask_price
-    print(f"TSLA price: ${price}")
+            try:
+                trading_client.submit_order(order)
+                print(f"{symbol} SOLD.\n")
+            except Exception as e:
+                print(f"Failed to sell {symbol}:", e)
 
-    if price >= PRICE_ALERT:
-        print("🚨 PRICE ALERT TRIGGERED")
-
-except Exception as e:
-    print("ERROR fetching TSLA price:", e)
-
-# =====================
-# FETCH PORTFOLIO
-# =====================
-try:
-    account = trading_client.get_account()
-    print(f"Equity: ${account.equity}")
-    print(f"Buying Power: ${account.buying_power}")
-
-except Exception as e:
-    print("ERROR fetching portfolio:", e)
-
-print("===== Check Complete =====")
+if __name__ == "__main__":
+    check_positions()
